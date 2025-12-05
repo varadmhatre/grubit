@@ -10,8 +10,7 @@ const firebaseConfig = {
   projectId: "grubit-45d09",
   storageBucket: "grubit-45d09.firebasestorage.app",
   messagingSenderId: "787109161650",
-  appId: "1:787109161650:web:bb9a0f8f321f8a75bb77ab",
-  measurementId: "G-3P7M922KET"
+  appId: "1:787109161650:web:bb9a0f8f321f8a75bb77ab"
 };
 
 if (typeof firebase === "undefined") {
@@ -422,6 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
 console.log("Firebase App:", firebase.app().name);
 console.log("Auth:", auth);
 console.log("DB:", db);
+
 
 
 
