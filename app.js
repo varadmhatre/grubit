@@ -421,6 +421,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+console.log("Firebase App:", firebase.app().name);
+console.log("Auth:", auth);
+console.log("DB:", db);
+
+
+
 
 
 
