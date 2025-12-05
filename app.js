@@ -1,6 +1,28 @@
 // app.js
 
-// ===== BASIC UTILITIES =====
+// ===================== FIREBASE INIT =====================
+// 1) Make sure you have added the Firebase CDN scripts in EACH HTML BEFORE this file.
+// 2) Replace the placeholder values below with the config from Firebase console.
+
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+if (typeof firebase === "undefined") {
+  console.error("Firebase SDK not loaded. Check your script tags in HTML.");
+}
+
+const appFirebase = firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ===================== UTILITIES =====================
+
 function $(sel) {
   return document.querySelector(sel);
 }
@@ -20,19 +42,18 @@ function showToast(message, type = "info") {
   }, 2500);
 }
 
-// Simple Gmail check (format + @gmail.com)
+// Simple Gmail check
 function isValidGmail(email) {
   const regex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
   return regex.test(email);
 }
 
-// ===== EMAILJS SETUP (THANK YOU MAIL) =====
-// Include EmailJS CDN in each HTML that needs it
-// emailjs.init('YOUR_PUBLIC_KEY'); is called in index.html script
+// ===================== EMAILJS (SIGNUP THANK-YOU) =====================
 
+// On index.html we call: emailjs.init("YOUR_PUBLIC_KEY");
+// Here we just use it if present.
 async function sendWelcomeEmail(email, name) {
   if (!window.emailjs) return;
-
   try {
     await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
       user_email: email,
@@ -44,23 +65,22 @@ async function sendWelcomeEmail(email, name) {
   }
 }
 
-// ===== AUTH STATE GUARD =====
+// ===================== AUTH GUARD =====================
+
 function requireAuth(redirectIfNo = "index.html") {
   auth.onAuthStateChanged((user) => {
     const currentPage = document.body.dataset.page;
+
     if (!user) {
-      // If not on login page, kick them out
       if (currentPage !== "login") {
         window.location.href = redirectIfNo;
       }
       return;
     }
 
-    // Store user basic info locally
     localStorage.setItem("sb_user_uid", user.uid);
     localStorage.setItem("sb_user_email", user.email);
 
-    // Page specific init
     if (currentPage === "customer") {
       initCustomerPage(user);
     } else if (currentPage === "seller") {
@@ -71,7 +91,8 @@ function requireAuth(redirectIfNo = "index.html") {
   });
 }
 
-// ===== LOGIN / SIGNUP LOGIC =====
+// ===================== SIGNUP / LOGIN =====================
+
 async function handleSignup(e) {
   e.preventDefault();
   const name = $("#signup-name").value.trim();
@@ -91,6 +112,7 @@ async function handleSignup(e) {
 
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
+
     await db.collection("users").doc(cred.user.uid).set({
       name,
       email,
@@ -101,7 +123,6 @@ async function handleSignup(e) {
     await sendWelcomeEmail(email, name);
     showToast("Signup successful. Welcome!", "success");
 
-    // Route based on role
     if (role === "seller") {
       window.location.href = "seller.html";
     } else {
@@ -129,7 +150,6 @@ async function handleLogin(e) {
 
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pass);
-
     const userDoc = await db.collection("users").doc(cred.user.uid).get();
     const data = userDoc.data();
     const role = data?.role || "customer";
@@ -153,7 +173,8 @@ function handleLogout() {
   });
 }
 
-// ===== SELLER PAGE =====
+// ===================== SELLER PAGE =====================
+
 function initSellerPage(user) {
   const productForm = $("#product-form");
   const productsContainer = $("#seller-products");
@@ -190,7 +211,6 @@ function initSellerPage(user) {
     }
   });
 
-  // Live sync seller products
   db.collection("products")
     .where("ownerId", "==", user.uid)
     .orderBy("createdAt", "desc")
@@ -234,7 +254,8 @@ function initSellerPage(user) {
   $("#logout-btn").addEventListener("click", handleLogout);
 }
 
-// ===== CUSTOMER PAGE =====
+// ===================== CUSTOMER PAGE =====================
+
 function initCustomerPage(user) {
   $("#user-email-display").textContent = user.email;
   const list = $("#product-list");
@@ -301,7 +322,8 @@ async function addToCart(userId, productId) {
   }
 }
 
-// ===== CART PAGE =====
+// ===================== CART PAGE =====================
+
 function initCartPage(user) {
   $("#user-email-display").textContent = user.email;
   const container = $("#cart-items");
@@ -369,7 +391,8 @@ function initCartPage(user) {
   $("#logout-btn").addEventListener("click", handleLogout);
 }
 
-// ===== PAGE BOOTSTRAP =====
+// ===================== PAGE BOOTSTRAP =====================
+
 document.addEventListener("DOMContentLoaded", () => {
   const page = document.body.dataset.page;
 
@@ -381,11 +404,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (loginForm) loginForm.addEventListener("submit", handleLogin);
   }
 
-  // For all pages except login, enforce auth
   if (page !== "login") {
     requireAuth();
   } else {
-    // If already logged in and open index.html, send to home
     auth.onAuthStateChanged(async (user) => {
       if (user) {
         const doc = await db.collection("users").doc(user.uid).get();
@@ -396,3 +417,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
