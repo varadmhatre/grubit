@@ -136,33 +136,42 @@ async function handleSignup(e) {
 
 async function handleLogin(e) {
   e.preventDefault();
+  console.log("Login submit fired");
+
   const email = $("#login-email").value.trim();
   const pass = $("#login-password").value.trim();
 
   if (!email || !pass) {
     showToast("Enter email & password.", "error");
+    alert("Enter email & password.");
     return;
   }
   if (!isValidGmail(email)) {
-    showToast("Use a valid @gmail.com address.", "error");
+    showToast("Use a valid @gmail.com address (@gmail.com only).", "error");
+    alert("Use a valid @gmail.com address.");
     return;
   }
 
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pass);
-    const userDoc = await db.collection("users").doc(cred.user.uid).get();
-    const data = userDoc.data();
-    const role = data?.role || "customer";
+    console.log("Firebase login success:", cred.user.uid);
 
+    const userDoc = await db.collection("users").doc(cred.user.uid).get();
+    const data = userDoc.data() || {};
+    const role = data.role || "customer";
+
+    alert("Login success! Role: " + role);
     showToast("Logged in successfully!", "success");
+
     if (role === "seller") {
       window.location.href = "seller.html";
     } else {
       window.location.href = "customer.html";
     }
   } catch (err) {
-    console.error(err);
+    console.error("Login error:", err);
     showToast(err.message, "error");
+    alert("Login failed: " + err.message);
   }
 }
 
@@ -393,30 +402,42 @@ function initCartPage(user) {
 
 // ===================== PAGE BOOTSTRAP =====================
 
-document.addEventListener("DOMContentLoaded", () => {
+// ===================== PAGE BOOTSTRAP =====================
+(function initPage() {
   const page = document.body.dataset.page;
+  console.log("Init page:", page);
 
   if (page === "login") {
     const signupForm = $("#signup-form");
     const loginForm = $("#login-form");
 
-    if (signupForm) signupForm.addEventListener("submit", handleSignup);
-    if (loginForm) loginForm.addEventListener("submit", handleLogin);
-  }
+    if (signupForm) {
+      signupForm.addEventListener("submit", handleSignup);
+      console.log("Signup form listener attached");
+    }
 
-  if (page !== "login") {
-    requireAuth();
-  } else {
+    if (loginForm) {
+      loginForm.addEventListener("submit", handleLogin);
+      console.log("Login form listener attached");
+    }
+
+    // If user already logged in and somehow opens index.html again → send to home
     auth.onAuthStateChanged(async (user) => {
+      console.log("Auth state on login page:", user ? user.uid : "no user");
       if (user) {
         const doc = await db.collection("users").doc(user.uid).get();
-        const role = doc.data()?.role || "customer";
+        const data = doc.data() || {};
+        const role = data.role || "customer";
         if (role === "seller") window.location.href = "seller.html";
         else window.location.href = "customer.html";
       }
     });
+  } else {
+    // Any page that isn't login must be protected
+    requireAuth();
   }
-});
+})();
+
 
 console.log("Firebase App:", firebase.app().name);
 console.log("Auth:", auth);
@@ -442,6 +463,7 @@ function signupUser(email, password) {
                 // Display error to the user
             });
     }
+
 
 
 
