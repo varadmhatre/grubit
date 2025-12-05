@@ -4,8 +4,6 @@
 // 1) Make sure you have added the Firebase CDN scripts in EACH HTML BEFORE this file.
 // 2) Replace the placeholder values below with the config from Firebase console.
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCR01N7CSB7OfB8VxHzkV725Zeo7ct-ibA",
   authDomain: "grubit-45d09.firebaseapp.com",
@@ -424,6 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
 console.log("Firebase App:", firebase.app().name);
 console.log("Auth:", auth);
 console.log("DB:", db);
+
 
 
 
