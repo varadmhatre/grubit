@@ -422,6 +422,26 @@ console.log("Firebase App:", firebase.app().name);
 console.log("Auth:", auth);
 console.log("DB:", db);
 
+   
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+        
+const auth = getAuth();
+    
+function signupUser(email, password) {
+        createUserWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+                // Signed up successfully
+                const user = userCredential.user;
+                console.log("User signed up:", user);
+                // Redirect or update UI
+            })
+            .catch((error) => {
+                const errorCode = error.code;
+                const errorMessage = error.message;
+                console.error("Signup error:", errorCode, errorMessage);
+                // Display error to the user
+            });
+    }
 
 
 
