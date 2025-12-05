@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuillFast – Stationery in Minutes</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <!-- EmailJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+<body data-page="login">
+  <div class="app-shell">
+    <section class="shell-hero">
+      <div class="brand-badge">
+        <span class="brand-dot"></span>
+        <span>Hyper-fast stationery, anywhere</span>
+      </div>
+      <div class="shell-headline">
+        <span class="accent-pill">QUILLFAST</span>
+        <h1>Your notebooks arrive<br>before the ink dries.</h1>
+        <p>Order pens, pads, art supplies and everything in between,
+        delivered in minutes – Blinkit-style.</p>
+      </div>
+      <div class="hero-illustration">
+        <div class="hero-card">
+          <img src="https://images.pexels.com/photos/4144222/pexels-photo-4144222.jpeg?auto=compress&w=200" alt="">
+          <div class="hero-card-text">
+            <h4>Late-night exam prep?</h4>
+            <p>We’ll drop highlighters at your door.</p>
+          </div>
+        </div>
+        <div class="hero-card">
+          <img src="https://images.pexels.com/photos/4144096/pexels-photo-4144096.jpeg?auto=compress&w=200" alt="">
+          <div class="hero-card-text">
+            <h4>Artists on a deadline</h4>
+            <p>Brushes, sheets and colours in under an hour.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell-main">
+      <div class="top-nav">
+        <span class="brand-logo">QuillFast</span>
+        <span class="muted-chip">Login required • Gmail only</span>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" id="tab-login">Log in</button>
+        <button class="tab" id="tab-signup">Sign up</button>
+      </div>
+
+      <div id="login-panel">
+        <h2 class="section-title">Welcome back</h2>
+        <p class="section-subtitle">Sign in with your Gmail to access your stationery universe.</p>
+
+        <form id="login-form">
+          <div class="form-row">
+            <label>Email (Gmail only)</label>
+            <input type="email" id="login-email" placeholder="you@gmail.com" required>
+          </div>
+          <div class="form-row">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" required>
+          </div>
+          <button class="btn" type="submit">Log in</button>
+        </form>
+      </div>
+
+      <div id="signup-panel" style="display:none;">
+        <h2 class="section-title">Create your account</h2>
+        <p class="section-subtitle">Choose if you are a customer or a seller. You can always change later.</p>
+
+        <form id="signup-form">
+          <div class="form-row">
+            <label>Full name</label>
+            <input type="text" id="signup-name" placeholder="Varad Mhatre" required>
+          </div>
+
+          <div class="form-row">
+            <label>Email (must be Gmail)</label>
+            <input type="email" id="signup-email" placeholder="you@gmail.com" required>
+          </div>
+
+          <div class="form-row">
+            <label>Password</label>
+            <input type="password" id="signup-password" placeholder="create a strong password" required>
+          </div>
+
+          <div class="form-row">
+            <label>Sign up as</label>
+            <div class="radio-row">
+              <label class="radio-chip">
+                <input type="radio" name="signup-role" value="customer"> Customer
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="signup-role" value="seller"> Seller
+              </label>
+            </div>
+          </div>
+
+          <button class="btn" type="submit">Create account</button>
+        </form>
+      </div>
+
+      <footer class="app-footer">
+        <span>© 2025 QuillFast – Stationery in a blink.</span>
+        <span>Contact: varadmhatre67@gmail.com • 8806606371</span>
+      </footer>
+    </section>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script>
+    // Init EmailJS
+    emailjs.init("service_grvf73c");
+
+    // Tabs logic
+    const tabLogin = document.getElementById("tab-login");
+    const tabSignup = document.getElementById("tab-signup");
+    const loginPanel = document.getElementById("login-panel");
+    const signupPanel = document.getElementById("signup-panel");
+
+    tabLogin.addEventListener("click", () => {
+      tabLogin.classList.add("active");
+      tabSignup.classList.remove("active");
+      loginPanel.style.display = "block";
+      signupPanel.style.display = "none";
+    });
+
+    tabSignup.addEventListener("click", () => {
+      tabSignup.classList.add("active");
+      tabLogin.classList.remove("active");
+      loginPanel.style.display = "none";
+      signupPanel.style.display = "block";
+    });
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

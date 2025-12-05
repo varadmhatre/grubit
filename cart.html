@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuillFast – Your Cart</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body data-page="cart">
+  <div class="app-shell single">
+    <section class="shell-main">
+      <header class="page-header">
+        <div>
+          <div class="brand-logo">QuillFast Cart</div>
+          <p class="section-subtitle">Review your stationery items before placing order.</p>
+        </div>
+        <div>
+          <span class="pill-user">Logged in as <span id="user-email-display"></span></span>
+          <button class="btn btn-small btn-secondary" onclick="window.location.href='customer.html'">Back to shop</button>
+          <button class="btn btn-small btn-secondary" id="logout-btn">Logout</button>
+        </div>
+      </header>
+
+      <h2 class="section-title">Your cart</h2>
+
+      <div id="cart-items" class="cart-list">
+        <!-- Cart rows injected -->
+      </div>
+
+      <div class="cart-summary">
+        <span class="muted">Total</span>
+        <div>
+          <strong id="cart-total">$0.00</strong>
+          <button class="btn btn-small" id="checkout-btn" style="margin-left:10px;">Place order</button>
+        </div>
+      </div>
+
+      <footer class="app-footer">
+        <span>Questions? Mail us at varadmhatre67@gmail.com</span>
+        <span>Contact no. 8806606371</span>
+      </footer>
+    </section>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

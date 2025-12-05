@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuillFast – Browse Stationery</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body data-page="customer">
+  <div class="app-shell single">
+    <section class="shell-main">
+      <header class="page-header">
+        <div>
+          <div class="brand-logo">QuillFast</div>
+          <p class="section-subtitle">Blinkit-style stationery, curated for you.</p>
+        </div>
+        <div>
+          <span class="pill-user">Logged in as <span id="user-email-display"></span></span>
+          <button class="btn btn-small" id="go-cart-btn">Cart</button>
+          <button class="btn btn-small btn-secondary" id="logout-btn">Logout</button>
+        </div>
+      </header>
+
+      <h2 class="section-title">Trending stationery</h2>
+      <p class="section-subtitle">Freshly added by sellers worldwide. Only published items appear here.</p>
+
+      <div id="product-list" class="product-grid">
+        <!-- Products injected by JS -->
+      </div>
+
+      <footer class="app-footer">
+        <span>Need help? Reach us at varadmhatre67@gmail.com</span>
+        <span>Contact no. 8806606371</span>
+      </footer>
+    </section>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
