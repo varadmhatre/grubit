@@ -1,5 +1,5 @@
 // ===================== FIREBASE INIT (AUTH + FIRESTORE) =====================
-// Replace this config with your Firebase project's Web config
+// Replace with your real Firebase config
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCR01N7CSB7OfB8VxHzkV725Zeo7ct-ibA",
@@ -47,10 +47,10 @@ function isValidGmail(email) {
 }
 
 // ===================== EMAILJS (WELCOME EMAIL) =====================
-// You must have emailjs loaded in index.html and emailjs.init("PUBLIC_KEY") called there.
+// Make sure emailjs.init("PUBLIC_KEY") is called in index.html
 
 async function sendWelcomeEmail(email, name) {
-  if (!window.emailjs) return; // if not loaded, just skip
+  if (!window.emailjs) return; // skip if not available
 
   try {
     await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
@@ -67,6 +67,8 @@ async function sendWelcomeEmail(email, name) {
 
 async function handleSignup(e) {
   e.preventDefault();
+  console.log("Signup submit fired");
+
   const name  = $("#signup-name")?.value.trim();
   const email = $("#signup-email")?.value.trim().toLowerCase();
   const pass  = $("#signup-password")?.value.trim();
@@ -84,8 +86,9 @@ async function handleSignup(e) {
 
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    console.log("Signup success UID:", cred.user.uid);
 
-    // Save user profile + role in Firestore
+    // Store user profile in Firestore
     await db.collection("users").doc(cred.user.uid).set({
       name,
       email,
@@ -93,16 +96,13 @@ async function handleSignup(e) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // Welcome email
     await sendWelcomeEmail(email, name);
 
-    // Cache some info locally
     localStorage.setItem("sb_user_uid", cred.user.uid);
     localStorage.setItem("sb_user_email", cred.user.email);
 
     showToast("Signup successful!", "success");
 
-    // Redirect based on role
     if (role === "seller") {
       window.location.href = "seller.html";
     } else {
@@ -116,6 +116,8 @@ async function handleSignup(e) {
 
 async function handleLogin(e) {
   e.preventDefault();
+  console.log("Login submit fired");
+
   const email = $("#login-email")?.value.trim().toLowerCase();
   const pass  = $("#login-password")?.value.trim();
 
@@ -130,16 +132,16 @@ async function handleLogin(e) {
 
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pass);
+    console.log("Login success UID:", cred.user.uid);
 
-    // Fetch role from Firestore
     let role = "customer";
     try {
       const doc = await db.collection("users").doc(cred.user.uid).get();
       if (doc.exists && doc.data().role) {
         role = doc.data().role;
       }
-    } catch (e2) {
-      console.warn("Could not read user role:", e2);
+    } catch (err2) {
+      console.warn("Could not read user role:", err2);
     }
 
     localStorage.setItem("sb_user_uid", cred.user.uid);
@@ -166,10 +168,12 @@ function handleLogout() {
   });
 }
 
-// For protected pages
+// For seller/customer/cart pages
 function requireAuth(pageInitFn) {
-  auth.onAuthStateChanged(async (user) => {
+  auth.onAuthStateChanged((user) => {
     const currentPage = document.body.dataset.page;
+    console.log("Auth state on", currentPage, ":", user ? user.uid : "no user");
+
     if (!user) {
       if (currentPage !== "login") {
         window.location.href = "index.html";
@@ -184,10 +188,10 @@ function requireAuth(pageInitFn) {
   });
 }
 
-// ===================== SELLER PAGE (PRODUCTS IN FIRESTORE) =====================
+// ===================== SELLER PAGE =====================
 
 function initSellerPage(user) {
-  console.log("Seller page for:", user.email);
+  console.log("Init seller for:", user.email);
 
   const emailSpan = $("#user-email-display");
   if (emailSpan) emailSpan.textContent = user.email;
@@ -198,7 +202,7 @@ function initSellerPage(user) {
   const form = $("#product-form");
   const list = $("#seller-products");
 
-  // Add new product (draft)
+  // Add product
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -231,7 +235,7 @@ function initSellerPage(user) {
     });
   }
 
-  // Live sync seller's products
+  // Live list seller products
   if (list) {
     db.collection("products")
       .where("ownerId", "==", user.uid)
@@ -281,18 +285,18 @@ function initSellerPage(user) {
             };
           });
         },
-        (error) => {
-          console.error("SELLER SNAPSHOT ERROR:", error);
+        (err) => {
+          console.error("Seller snapshot error:", err);
           showToast("Error loading your products.", "error");
         }
       );
   }
 }
 
-// ===================== CUSTOMER PAGE (GLOBAL PRODUCTS) =====================
+// ===================== CUSTOMER PAGE =====================
 
 function initCustomerPage(user) {
-  console.log("Customer page for:", user.email);
+  console.log("Init customer for:", user.email);
 
   const emailSpan = $("#user-email-display");
   if (emailSpan) emailSpan.textContent = user.email;
@@ -345,8 +349,8 @@ function initCustomerPage(user) {
             btn.onclick = () => addToCart(user.uid, btn.dataset.id);
           });
         },
-        (error) => {
-          console.error("CUSTOMER SNAPSHOT ERROR:", error);
+        (err) => {
+          console.error("Customer snapshot error:", err);
           showToast("Error loading products.", "error");
         }
       );
@@ -378,7 +382,7 @@ async function addToCart(userId, productId) {
 // ===================== CART PAGE =====================
 
 function initCartPage(user) {
-  console.log("Cart page for:", user.email);
+  console.log("Init cart for:", user.email);
 
   const emailSpan = $("#user-email-display");
   if (emailSpan) emailSpan.textContent = user.email;
@@ -386,8 +390,8 @@ function initCartPage(user) {
   const logoutBtn = $("#logout-btn");
   if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
 
-  const container = $("#cart-items");
-  const totalEl   = $("#cart-total");
+  const container   = $("#cart-items");
+  const totalEl     = $("#cart-total");
   const checkoutBtn = $("#checkout-btn");
 
   const cartRef = db.collection("carts").doc(user.uid);
@@ -456,8 +460,8 @@ function initCartPage(user) {
         };
       });
     },
-    (error) => {
-      console.error("CART SNAPSHOT ERROR:", error);
+    (err) => {
+      console.error("Cart snapshot error:", err);
       showToast("Error loading cart.", "error");
     }
   );
@@ -474,32 +478,23 @@ function initCartPage(user) {
 
 document.addEventListener("DOMContentLoaded", () => {
   const page = document.body.dataset.page;
-  console.log("Init page:", page);
+  console.log("DOM ready, page =", page);
 
   if (page === "login") {
     const signupForm = $("#signup-form");
-    const loginForm  = $("#login-form";
+    const loginForm  = $("#login-form");
 
-    if (signupForm) signupForm.addEventListener("submit", handleSignup);
-    if (loginForm)  loginForm.addEventListener("submit", handleLogin);
-
-    // Optional: auto-redirect if user already logged in
-    auth.onAuthStateChanged(async (user) => {
-      if (!user) return;
-      try {
-        const doc = await db.collection("users").doc(user.uid).get();
-        const role = doc.data()?.role || "customer";
-        if (role === "seller") window.location.href = "seller.html";
-        else window.location.href = "customer.html";
-      } catch (err) {
-        console.error("Auto-redirect error:", err);
-      }
-    });
-
+    if (signupForm) {
+      signupForm.addEventListener("submit", handleSignup);
+      console.log("Signup listener attached");
+    }
+    if (loginForm) {
+      loginForm.addEventListener("submit", handleLogin);
+      console.log("Login listener attached");
+    }
     return;
   }
 
-  // Protected pages:
   if (page === "seller") {
     requireAuth(initSellerPage);
   } else if (page === "customer") {
