@@ -118,11 +118,48 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   const page = document.body.dataset.page;
 
+  // LOGIN PAGE
   if(page === "login"){
     $("#signup-form")?.addEventListener("submit", handleSignup);
     $("#login-form")?.addEventListener("submit", handleLogin);
     return;
   }
+
+  // SELLER PAGE
+  if(page === "seller"){
+    requireAuth((user)=>{
+
+      $("#logout-btn")?.addEventListener("click", handleLogout);
+
+    });
+  }
+
+  // CUSTOMER PAGE
+  if(page === "customer"){
+    requireAuth((user)=>{
+
+      $("#logout-btn")?.addEventListener("click", handleLogout);
+
+      $("#go-cart-btn")?.addEventListener("click", ()=>{
+        window.location.href = "cart.html";
+      });
+
+    });
+  }
+
+  // CART PAGE
+  if(page === "cart"){
+    requireAuth((user)=>{
+
+      $("#logout-btn")?.addEventListener("click", handleLogout);
+
+    });
+  }
+
+});
+
+
+
 
   // PROTECTED ROUTES
   if(page === "seller"){
@@ -138,3 +175,4 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
 });
+
