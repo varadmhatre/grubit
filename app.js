@@ -1,5 +1,5 @@
-// ===================== FIREBASE INIT =====================
-// Replace this config with your project's actual Web config from Firebase Console
+// ===================== FIREBASE (AUTH ONLY) =====================
+// Put your real config here
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCR01N7CSB7OfB8VxHzkV725Zeo7ct-ibA",
@@ -12,14 +12,13 @@ const firebaseConfig = {
 };
 
 if (typeof firebase === "undefined") {
-  console.error("Firebase SDK not loaded. Check script tags.");
+  console.error("Firebase SDK not loaded");
 }
 
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db   = firebase.firestore();
+const auth = firebase.auth(); // ONLY auth, no Firestore
 
-// ===================== UTILITIES =====================
+// ===================== SMALL HELPERS =====================
 
 function $(sel) {
   return document.querySelector(sel);
@@ -45,11 +44,64 @@ function isValidGmail(email) {
   return regex.test(email);
 }
 
-// ===================== EMAILJS (WELCOME EMAIL) =====================
+// ===================== LOCAL STORAGE LAYER =====================
+// We store products and cart locally on the device
+
+function loadProducts() {
+  try {
+    return JSON.parse(localStorage.getItem("qf_products") || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveProducts(products) {
+  localStorage.setItem("qf_products", JSON.stringify(products));
+}
+
+function loadCart(userId) {
+  try {
+    return JSON.parse(localStorage.getItem("qf_cart_" + userId) || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCart(userId, items) {
+  localStorage.setItem("qf_cart_" + userId, JSON.stringify(items));
+}
+
+function createProduct({ title, price, desc, imageUrl, ownerId }) {
+  const products = loadProducts();
+  const id = "p_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+  const product = {
+    id,
+    title,
+    price,
+    desc,
+    imageUrl: imageUrl || "https://via.placeholder.com/300x200?text=Stationery",
+    ownerId,
+    published: false,
+    createdAt: Date.now()
+  };
+  products.push(product);
+  saveProducts(products);
+  return product;
+}
+
+function togglePublishProduct(id) {
+  const products = loadProducts();
+  const idx = products.findIndex(p => p.id === id);
+  if (idx === -1) return null;
+  products[idx].published = !products[idx].published;
+  saveProducts(products);
+  return products[idx];
+}
+
+// ===================== EMAILJS WELCOME (OPTIONAL) =====================
 
 async function sendWelcomeEmail(email, name) {
-  if (!window.emailjs) return; // safe no-op if not present
-
+  if (!window.emailjs) return; // fail silently if not available
   try {
     await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
       user_email: email,
@@ -61,67 +113,35 @@ async function sendWelcomeEmail(email, name) {
   }
 }
 
-// ===================== AUTH GUARD FOR OTHER PAGES =====================
-
-function requireAuth(pageInitFn) {
-  auth.onAuthStateChanged((user) => {
-    console.log("Auth state on protected page:", user ? user.uid : "no user");
-    if (!user) {
-      window.location.href = "index.html";
-      return;
-    }
-    // Save basic info
-    localStorage.setItem("sb_user_uid", user.uid);
-    localStorage.setItem("sb_user_email", user.email);
-
-    pageInitFn(user);
-  });
-}
-
-// ===================== SIGNUP & LOGIN =====================
+// ===================== AUTH & ROUTING =====================
 
 async function handleSignup(e) {
   e.preventDefault();
-  console.log("Signup submit fired");
-
-  const name = $("#signup-name")?.value.trim();
-  const email = $("#signup-email")?.value.trim();
-  const pass = $("#signup-password")?.value.trim();
+  const name = $("#signup-name").value.trim();
+  const email = $("#signup-email").value.trim().toLowerCase();
+  const pass = $("#signup-password").value.trim();
   const role = document.querySelector('input[name="signup-role"]:checked')?.value;
 
   if (!name || !email || !pass || !role) {
-    showToast("Fill all fields & pick role.", "error");
-    alert("Fill all fields & pick role.");
+    showToast("Fill all fields & select role.", "error");
     return;
   }
-
   if (!isValidGmail(email)) {
     showToast("Use a valid @gmail.com address.", "error");
-    alert("Use a valid @gmail.com address.");
     return;
   }
 
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
-    console.log("Signup success UID:", cred.user.uid);
-
-    // Try to store user role/info (if rules allow)
-    try {
-      await db.collection("users").doc(cred.user.uid).set({
-        name,
-        email,
-        role,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    } catch (fireErr) {
-      console.warn("Could not write user doc (rules maybe?):", fireErr);
-    }
-
     await sendWelcomeEmail(email, name);
-    showToast("Signup successful!", "success");
-    alert("Signup successful! Redirecting as " + role);
 
-    // HARD redirect based on chosen role
+    // Save role locally (since we removed Firestore)
+    localStorage.setItem("qf_role_" + cred.user.uid, role);
+    localStorage.setItem("sb_user_uid", cred.user.uid);
+    localStorage.setItem("sb_user_email", cred.user.email);
+
+    showToast("Signup successful!", "success");
+
     if (role === "seller") {
       window.location.href = "seller.html";
     } else {
@@ -130,44 +150,33 @@ async function handleSignup(e) {
   } catch (err) {
     console.error("Signup error:", err);
     showToast(err.message, "error");
-    alert("Signup failed: " + err.message);
   }
 }
 
 async function handleLogin(e) {
   e.preventDefault();
-  console.log("Login submit fired");
-
-  const email = $("#login-email")?.value.trim();
-  const pass = $("#login-password")?.value.trim();
+  const email = $("#login-email").value.trim().toLowerCase();
+  const pass = $("#login-password").value.trim();
 
   if (!email || !pass) {
     showToast("Enter email & password.", "error");
-    alert("Enter email & password.");
     return;
   }
   if (!isValidGmail(email)) {
     showToast("Use a valid @gmail.com address.", "error");
-    alert("Use a valid @gmail.com address.");
     return;
   }
 
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pass);
-    console.log("Login success UID:", cred.user.uid);
 
-    // Try to fetch role, but don't depend on it
-    let role = "customer";
-    try {
-      const docSnap = await db.collection("users").doc(cred.user.uid).get();
-      const data = docSnap.data();
-      if (data && data.role) role = data.role;
-    } catch (fireErr) {
-      console.warn("Could not read user doc:", fireErr);
-    }
+    const uid = cred.user.uid;
+    const role = localStorage.getItem("qf_role_" + uid) || "customer";
 
-    showToast("Logged in!", "success");
-    alert("Login success! Redirecting as " + role);
+    localStorage.setItem("sb_user_uid", uid);
+    localStorage.setItem("sb_user_email", cred.user.email);
+
+    showToast("Login successful!", "success");
 
     if (role === "seller") {
       window.location.href = "seller.html";
@@ -177,31 +186,94 @@ async function handleLogin(e) {
   } catch (err) {
     console.error("Login error:", err);
     showToast(err.message, "error");
-    alert("Login failed: " + err.message);
   }
 }
 
 function handleLogout() {
   auth.signOut().then(() => {
-    localStorage.clear();
+    localStorage.removeItem("sb_user_uid");
+    localStorage.removeItem("sb_user_email");
+    showToast("Logged out.", "info");
     window.location.href = "index.html";
   });
 }
 
-// ===================== SELLER PAGE =====================
+// For protected pages
+function requireAuth(pageInitFn) {
+  auth.onAuthStateChanged(user => {
+    const currentPage = document.body.dataset.page;
+    if (!user) {
+      // Kick to login if not on login page
+      if (currentPage !== "login") {
+        window.location.href = "index.html";
+      }
+      return;
+    }
+    localStorage.setItem("sb_user_uid", user.uid);
+    localStorage.setItem("sb_user_email", user.email);
+    pageInitFn(user);
+  });
+}
+
+// ===================== SELLER PAGE LOGIC =====================
 
 function initSellerPage(user) {
-  console.log("Init seller page for:", user.email);
-  const productForm = $("#product-form");
-  const productsContainer = $("#seller-products");
   const emailSpan = $("#user-email-display");
-  const logoutBtn = $("#logout-btn");
-
   if (emailSpan) emailSpan.textContent = user.email;
+
+  const logoutBtn = $("#logout-btn");
   if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
 
-  if (productForm) {
-    productForm.addEventListener("submit", async (e) => {
+  const form = $("#product-form");
+  const list = $("#seller-products");
+
+  function renderSellerProducts() {
+    const products = loadProducts()
+      .filter(p => p.ownerId === user.uid)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    list.innerHTML = "";
+    if (!products.length) {
+      list.innerHTML = `<p class="muted">You haven't added any products yet.</p>`;
+      return;
+    }
+
+    products.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "card product-card";
+      card.innerHTML = `
+        <img src="${p.imageUrl}" alt="${p.title}">
+        <div class="card-content">
+          <h3>${p.title}</h3>
+          <p class="muted">${p.desc}</p>
+          <p class="price">$${p.price.toFixed(2)}</p>
+          <div class="product-actions">
+            <span class="status-pill ${p.published ? "published" : "draft"}">
+              ${p.published ? "Published" : "Draft"}
+            </span>
+            <button class="btn btn-small toggle-publish" data-id="${p.id}">
+              ${p.published ? "Unpublish" : "Publish"}
+            </button>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+
+    $all(".toggle-publish").forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.id;
+        const updated = togglePublishProduct(id);
+        if (updated) {
+          showToast(updated.published ? "Product published!" : "Product hidden.", "success");
+          renderSellerProducts();
+        }
+      };
+    });
+  }
+
+  if (form) {
+    form.addEventListener("submit", e => {
       e.preventDefault();
       const title = $("#prod-title").value.trim();
       const price = parseFloat($("#prod-price").value);
@@ -209,178 +281,124 @@ function initSellerPage(user) {
       const imageUrl = $("#prod-image").value.trim();
 
       if (!title || !price || !desc) {
-        showToast("Fill all product details.", "error");
+        showToast("Fill all product fields.", "error");
         return;
       }
 
-      try {
-        await db.collection("products").add({
-          title,
-          price,
-          desc,
-          imageUrl: imageUrl || "https://via.placeholder.com/300x200?text=Stationery",
-          ownerId: user.uid,
-          published: false,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        showToast("Product saved as draft.", "success");
-        productForm.reset();
-      } catch (err) {
-        console.error(err);
-        showToast("Error saving product.", "error");
-      }
+      createProduct({ title, price, desc, imageUrl, ownerId: user.uid });
+      form.reset();
+      showToast("Product saved as draft.", "success");
+      renderSellerProducts();
     });
   }
 
-  if (productsContainer) {
-    db.collection("products")
-      .where("ownerId", "==", user.uid)
-      .orderBy("createdAt", "desc")
-      .onSnapshot((snap) => {
-        productsContainer.innerHTML = "";
-        snap.forEach((doc) => {
-          const p = doc.data();
-          const card = document.createElement("div");
-          card.className = "card product-card";
-          card.innerHTML = `
-            <img src="${p.imageUrl}" alt="${p.title}">
-            <div class="card-content">
-              <h3>${p.title}</h3>
-              <p class="muted">${p.desc}</p>
-              <p class="price">$${p.price.toFixed(2)}</p>
-              <div class="product-actions">
-                <span class="status-pill ${p.published ? "published" : "draft"}">
-                  ${p.published ? "Published" : "Draft"}
-                </span>
-                <button class="btn btn-small toggle-publish" data-id="${doc.id}">
-                  ${p.published ? "Unpublish" : "Publish"}
-                </button>
-              </div>
-            </div>
-          `;
-          productsContainer.appendChild(card);
-        });
-
-        $all(".toggle-publish").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const id = btn.dataset.id;
-            const ref = db.collection("products").doc(id);
-            const snapNow = await ref.get();
-            const current = snapNow.data().published;
-            await ref.update({ published: !current });
-            showToast(!current ? "Product published!" : "Product hidden.", "success");
-          });
-        });
-      });
-  }
+  renderSellerProducts();
 }
 
-// ===================== CUSTOMER PAGE =====================
+// ===================== CUSTOMER PAGE LOGIC =====================
 
 function initCustomerPage(user) {
-  console.log("Init customer page for:", user.email);
   const emailSpan = $("#user-email-display");
-  const logoutBtn = $("#logout-btn");
-  const cartBtn = $("#go-cart-btn");
-  const list = $("#product-list");
-
   if (emailSpan) emailSpan.textContent = user.email;
+
+  const logoutBtn = $("#logout-btn");
   if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
+
+  const cartBtn = $("#go-cart-btn");
   if (cartBtn) cartBtn.addEventListener("click", () => {
     window.location.href = "cart.html";
   });
 
-  if (list) {
-    db.collection("products")
-      .where("published", "==", true)
-      .orderBy("createdAt", "desc")
-      .onSnapshot((snap) => {
-        list.innerHTML = "";
-        if (snap.empty) {
-          list.innerHTML = `<p class="muted">No stationery items yet. Sellers will add soon.</p>`;
-          return;
-        }
+  const list = $("#product-list");
 
-        snap.forEach((doc) => {
-          const p = doc.data();
-          const card = document.createElement("div");
-          card.className = "card product-card";
-          card.innerHTML = `
-            <img src="${p.imageUrl}" alt="${p.title}">
-            <div class="card-content">
-              <h3>${p.title}</h3>
-              <p class="muted">${p.desc}</p>
-              <div class="card-footer">
-                <span class="price">$${p.price.toFixed(2)}</span>
-                <button class="btn btn-small add-to-cart" data-id="${doc.id}">
-                  Add to cart
-                </button>
-              </div>
-            </div>
-          `;
-          list.appendChild(card);
-        });
+  function renderCustomerProducts() {
+    const products = loadProducts()
+      .filter(p => p.published)
+      .sort((a, b) => b.createdAt - a.createdAt);
 
-        $all(".add-to-cart").forEach((btn) => {
-          btn.addEventListener("click", () => addToCart(user.uid, btn.dataset.id));
-        });
-      });
-  }
-}
-
-async function addToCart(userId, productId) {
-  try {
-    const cartRef = db.collection("carts").doc(userId);
-    const snap = await cartRef.get();
-    let items = [];
-    if (snap.exists) items = snap.data().items || [];
-
-    const idx = items.findIndex((i) => i.productId === productId);
-    if (idx >= 0) {
-      items[idx].qty += 1;
-    } else {
-      items.push({ productId, qty: 1 });
+    list.innerHTML = "";
+    if (!products.length) {
+      list.innerHTML = `<p class="muted">No stationery items available yet.</p>`;
+      return;
     }
-    await cartRef.set({ userId, items });
-    showToast("Added to cart.", "success");
-  } catch (err) {
-    console.error(err);
-    showToast("Cart update failed.", "error");
+
+    products.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "card product-card";
+      card.innerHTML = `
+        <img src="${p.imageUrl}" alt="${p.title}">
+        <div class="card-content">
+          <h3>${p.title}</h3>
+          <p class="muted">${p.desc}</p>
+          <div class="card-footer">
+            <span class="price">$${p.price.toFixed(2)}</span>
+            <button class="btn btn-small add-to-cart" data-id="${p.id}">
+              Add to cart
+            </button>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+
+    $all(".add-to-cart").forEach(btn => {
+      btn.onclick = () => addToCart(user.uid, btn.dataset.id);
+    });
   }
+
+  renderCustomerProducts();
 }
 
-// ===================== CART PAGE =====================
+function addToCart(userId, productId) {
+  const products = loadProducts();
+  const product = products.find(p => p.id === productId);
+  if (!product) {
+    showToast("Product not found.", "error");
+    return;
+  }
+
+  let items = loadCart(userId);
+  const idx = items.findIndex(i => i.productId === productId);
+  if (idx >= 0) {
+    items[idx].qty += 1;
+  } else {
+    items.push({ productId, qty: 1 });
+  }
+  saveCart(userId, items);
+  showToast("Added to cart.", "success");
+}
+
+// ===================== CART PAGE LOGIC =====================
 
 function initCartPage(user) {
-  console.log("Init cart page for:", user.email);
   const emailSpan = $("#user-email-display");
+  if (emailSpan) emailSpan.textContent = user.email;
+
   const logoutBtn = $("#logout-btn");
+  if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
+
   const container = $("#cart-items");
   const totalEl = $("#cart-total");
   const checkoutBtn = $("#checkout-btn");
 
-  if (emailSpan) emailSpan.textContent = user.email;
-  if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
-
-  const cartRef = db.collection("carts").doc(user.uid);
-  cartRef.onSnapshot(async (snap) => {
-    if (!container || !totalEl) return;
+  function renderCart() {
+    const products = loadProducts();
+    const items = loadCart(user.uid);
 
     container.innerHTML = "";
-    if (!snap.exists || !snap.data().items.length) {
+    if (!items.length) {
       container.innerHTML = `<p class="muted">Your cart is empty.</p>`;
       totalEl.textContent = "$0.00";
       return;
     }
 
-    const items = snap.data().items;
     let total = 0;
-    for (const item of items) {
-      const prodSnap = await db.collection("products").doc(item.productId).get();
-      if (!prodSnap.exists) continue;
-      const p = prodSnap.data();
+    items.forEach(item => {
+      const p = products.find(pr => pr.id === item.productId);
+      if (!p) return;
       const lineTotal = p.price * item.qty;
       total += lineTotal;
+
       const row = document.createElement("div");
       row.className = "cart-row";
       row.innerHTML = `
@@ -391,73 +409,65 @@ function initCartPage(user) {
         <div class="cart-actions">
           <span class="price">$${lineTotal.toFixed(2)}</span>
           <div class="qty-controls">
-            <button class="qty-btn" data-id="${item.productId}" data-action="dec">−</button>
-            <button class="qty-btn" data-id="${item.productId}" data-action="inc">+</button>
+            <button class="qty-btn" data-id="${p.id}" data-action="dec">−</button>
+            <button class="qty-btn" data-id="${p.id}" data-action="inc">+</button>
           </div>
         </div>
       `;
       container.appendChild(row);
-    }
+    });
+
     totalEl.textContent = `$${total.toFixed(2)}`;
 
-    $all(".qty-btn").forEach((btn) => {
-      btn.addEventListener("click", async () => {
+    $all(".qty-btn").forEach(btn => {
+      btn.onclick = () => {
         const action = btn.dataset.action;
         const id = btn.dataset.id;
-        const snapNow = await cartRef.get();
-        if (!snapNow.exists) return;
-        let itemsNow = snapNow.data().items || [];
-        const idx = itemsNow.findIndex((i) => i.productId === id);
+        let items = loadCart(user.uid);
+        const idx = items.findIndex(i => i.productId === id);
         if (idx === -1) return;
         if (action === "inc") {
-          itemsNow[idx].qty += 1;
+          items[idx].qty += 1;
         } else {
-          itemsNow[idx].qty -= 1;
-          if (itemsNow[idx].qty <= 0) itemsNow.splice(idx, 1);
+          items[idx].qty -= 1;
+          if (items[idx].qty <= 0) items.splice(idx, 1);
         }
-        await cartRef.set({ userId: user.uid, items: itemsNow });
-      });
+        saveCart(user.uid, items);
+        renderCart();
+      };
     });
-  });
+  }
 
   if (checkoutBtn) {
     checkoutBtn.addEventListener("click", () => {
-      showToast("Order placed! (Demo checkout)", "success");
+      showToast("Order placed! (local demo)", "success");
+      // Clear cart after fake checkout
+      saveCart(user.uid, []);
+      renderCart();
     });
   }
+
+  renderCart();
 }
 
-// ===================== PAGE INITIALISATION =====================
-
-function initLoginPage() {
-  console.log("Init login page");
-  const signupForm = $("#signup-form");
-  const loginForm = $("#login-form");
-
-  if (signupForm) {
-    signupForm.addEventListener("submit", handleSignup);
-    console.log("Signup listener attached");
-  }
-  if (loginForm) {
-    loginForm.addEventListener("submit", handleLogin);
-    console.log("Login listener attached");
-  }
-}
+// ===================== PAGE BOOTSTRAP =====================
 
 document.addEventListener("DOMContentLoaded", () => {
   const page = document.body.dataset.page;
-  console.log("DOM ready, page =", page);
 
   if (page === "login") {
-    initLoginPage();
-    // NO auth.onAuthStateChanged here; we only redirect AFTER manual login/signup
+    const signupForm = $("#signup-form");
+    const loginForm = $("#login-form");
+    if (signupForm) signupForm.addEventListener("submit", handleSignup);
+    if (loginForm) loginForm.addEventListener("submit", handleLogin);
     return;
   }
 
-  if (page === "customer") {
-    requireAuth(initCustomerPage);
-  } else if (page === "seller") {
+  // Protected pages
+  if (page === "seller") {
     requireAuth(initSellerPage);
+  } else if (page === "customer") {
+    requireAuth(initCustomerPage);
   } else if (page === "cart") {
     requireAuth(initCartPage);
   }
