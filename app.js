@@ -46,22 +46,6 @@ function isValidGmail(email) {
   return regex.test(email);
 }
 
-// ===================== EMAILJS (WELCOME EMAIL) =====================
-// Make sure emailjs.init("PUBLIC_KEY") is called in index.html
-
-async function sendWelcomeEmail(email, name) {
-  if (!window.emailjs) return; // skip if not available
-
-  try {
-    await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
-      user_email: email,
-      user_name: name
-    });
-    console.log("Welcome email sent");
-  } catch (err) {
-    console.error("EmailJS error:", err);
-  }
-}
 
 // ===================== AUTH HELPERS =====================
 
@@ -503,3 +487,4 @@ document.addEventListener("DOMContentLoaded", () => {
     requireAuth(initCartPage);
   }
 });
+
